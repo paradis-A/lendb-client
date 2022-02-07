@@ -9,7 +9,7 @@ export default async function Commit(data: Object[],http?:typeof ky) {
                     Promise.reject("Error: commit does not support load operation");
                 }
                 let payload = data.map(d=>d.parse())
-                let res = await this.http.post("lenDB",{body: JSON.stringify(payload)}).json()
+                let res = await http.post("lenDB",{body: JSON.stringify(payload)}).json()
                 data.forEach((d,index)=>{
                     if(data[index].getOperation() == "destroy"){
                         data[index].clear()

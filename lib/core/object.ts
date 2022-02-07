@@ -64,6 +64,10 @@ export default class LenObject{
                     singular: clone?.singular
                 })
             }
+            
+            if(!clone.key && clone.singular == false){
+                throw new Error("Error: Non-singular must contain key.")
+            }
             return clone
         } catch (error) {
             throw new Error(error)
@@ -140,6 +144,11 @@ export default class LenObject{
         delete temp.serializer
         delete temp.singular
         Object.assign(this,temp)
+        if(temp.key  && !cuid.isCuid(temp.key)){
+            throw new Error("Invalid key")
+        }else{
+            delete temp.key
+        }
         return this
     }
 

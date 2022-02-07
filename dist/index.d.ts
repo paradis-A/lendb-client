@@ -11,7 +11,7 @@ export default class LenDB {
     private baseURL;
     constructor(host?: string, port?: number, secure?: boolean);
     Object<T>(ref: string, keyOrSingular?: string | boolean): Object;
-    Commit(data: Object[]): Promise<any>;
+    Commit(data: Object[]): Promise<unknown>;
     File(file: File): LenFile;
     Query<T>(ref: string): Query<T>;
 }

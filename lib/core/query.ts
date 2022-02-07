@@ -213,7 +213,7 @@ export default class LenQuery<Type> {
             })
             .join("/");
     }
-
+    
     protected createWS() {
         let props = {
             subscriptionKey: this.#subscriptionKey,
