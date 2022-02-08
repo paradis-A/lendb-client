@@ -4,6 +4,8 @@ import { writable } from "svelte/store";
 import Emittery from "emittery";
 import isEqual from "lodash/isEqual";
 import Crypto from "simple-crypto-js";
+// import "uluru-crypto"
+// const {encrypt,decrypt} = Uluru
 export default class Auth {
     cache: boolean = true;
     //server must respond to encrypt the cache: the key will be based on the httpOnly cookie
