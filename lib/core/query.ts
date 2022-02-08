@@ -107,7 +107,7 @@ export default class LenQuery<Type> {
     }
 
     eq(field: string, value: any) {
-        this.filters[field+"[eq]"] = value
+        this.filters[field+"[==]"] = value
         return this;
     }
 
