@@ -1,0 +1,1 @@
+(WIP) Browser-client for connecting to [LenDB]{https://github.com/paradis-A/lendb-server}.

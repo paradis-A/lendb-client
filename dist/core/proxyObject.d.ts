@@ -1,2 +1,2 @@
-export default function proxyObject(): {};
+export default function proxyObject(): any;
 //# sourceMappingURL=proxyObject.d.ts.map

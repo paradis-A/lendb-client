@@ -1,32 +1,39 @@
 {
+  "name": "lendb-client",
+  "version": "0.0.1",
+  "description": "",
+  "main": "dist/index.js",
   "scripts": {
-    "bundle": "rollup -i paradis-client/index.js -o paradis-client/bundle.js"
+    "build": "rollup -c",
+    "dev": "rollup -c -w"
   },
+  "license": "MIT",
+  "repository": "https://github.com/paradis-A/lendb-client",
+  "keywords": [
+    "acebase wrapper",
+    "acebase-client",
+    "acebase",
+    "object",
+    "object database",
+    "acebase wrapper",
+    "object-db"
+  ],
+  "author": "Clarence Duquez Eda (paradis-A)",
   "dependencies": {
-    "@47ng/cloak": "^1.1.0",
-    "@webpixels/css": "^1.1.9",
     "cuid": "^2.1.8",
     "dayjs": "^1.10.7",
-    "dot-safe": "^1.0.3",
     "emittery": "^0.10.0",
-    "fluent-object": "^1.0.2",
     "ky": "^0.28.7",
-    "light-secure-storage": "^1.0.4",
     "lodash": "^4.17.21",
-    "print-js": "^1.6.0",
-    "proxy-deep": "^3.1.1",
-    "secure-ls": "^1.2.6",
     "simple-crypto-js": "^3.0.1",
     "sockette": "^2.0.6",
-    "tiny-enc": "^1.0.2",
-    "uluru-crypto": "^3.2.6"
+    "uluru-crypto": "^3.3.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^21.0.1",
     "@rollup/plugin-node-resolve": "^13.1.2",
     "@rollup/plugin-typescript": "^8.3.0",
     "@types/lodash": "^4.14.178",
-    "caeser-cipher-js": "^2.0.0",
     "rollup": "^2.62.0",
     "rollup-plugin-node-globals": "^1.4.0",
     "rollup-plugin-terser": "^7.0.2",

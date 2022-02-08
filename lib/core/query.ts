@@ -5,7 +5,6 @@ import cloneDeep from "lodash/cloneDeep";
 import isObject from "lodash/isObject"
 import Sockette from "sockette";
 import Normalize from "./normalize";
-import proxyObject from "./proxyObject";
 import { Writable, writable } from "svelte/store";
 export default class LenQuery<Type> {
     filters: any = {}
