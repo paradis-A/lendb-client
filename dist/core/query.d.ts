@@ -92,10 +92,10 @@ declare class iLiveQuery {
     protected update: Function;
     protected destroy: Function;
     protected initial: Function;
-    onAdd(cb: (e: any) => void): void;
-    onInitial(cb: (e: any) => void): void;
-    onUpdate(cb: (e: any) => void): void;
-    onDestroy(cb: (e: any) => void): void;
+    onAdd(cb: (e: any, allData: any[]) => void): void;
+    onInitial(cb: (e: any, allData: any[]) => void): void;
+    onUpdate(cb: (e: any, allData: any[]) => void): void;
+    onDestroy(cb: (e: any, allData: any[]) => void): void;
     getEvent(event: "add" | "update" | "destroy" | "initial"): Function;
 }
 export {};

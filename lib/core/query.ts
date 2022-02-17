@@ -2,14 +2,13 @@ import Emittery from "emittery";
 import cuid from "cuid";
 import ky from "ky";
 import cloneDeep from "lodash/cloneDeep";
-import isObject from "lodash/isObject"
+import isObject from "lodash/isObject";
 import Sockette from "sockette";
 import Normalize from "./normalize";
 import { Writable, writable } from "svelte/store";
-
 export default class LenQuery<Type> {
-    filters: any = {}
-    sorts: { [any: string]: "ASC" | "DESC" | null } = {}
+    filters: any = {};
+    sorts: { [any: string]: "ASC" | "DESC" | null } = {};
     protected ref: string;
     protected listener: iLiveQuery;
     skip: number = 0;
@@ -64,7 +63,7 @@ export default class LenQuery<Type> {
         let val = "*" + value + "*";
         if (pattern == "left") val = "*" + value;
         if (pattern == "right") val = value + "*";
-        this.filters[field+"[like]"] = val
+        this.filters[field + "[like]"] = val;
         return this;
     }
 
@@ -72,92 +71,92 @@ export default class LenQuery<Type> {
         let val = "*" + value + "*";
         if (pattern == "left") val = "*" + value;
         if (pattern == "right") val = value + "*";
-        this.filters[field+"[!like]"] = val
+        this.filters[field + "[!like]"] = val;
         return this;
     }
 
     gt(field: string, value: any) {
-        this.filters[field+"[>]"] = value
+        this.filters[field + "[>]"] = value;
         return this;
     }
 
     gte(field: string, value: any) {
-        this.filters[field+"[>=]"] = value
+        this.filters[field + "[>=]"] = value;
         return this;
     }
 
     between(field: string, value: any) {
-        this.filters[field+"[between]"] = value
+        this.filters[field + "[between]"] = value;
         return this;
     }
 
     notBetween(field: string, value: any) {
-        this.filters[field+"[!between]"] = value
+        this.filters[field + "[!between]"] = value;
         return this;
     }
 
     lt(field: string, value: any) {
-        this.filters[field+"[<]"] = value
+        this.filters[field + "[<]"] = value;
         return this;
     }
 
     lte(field: string, value: any) {
-        this.filters[field+"[<=]"] = value
+        this.filters[field + "[<=]"] = value;
         return this;
     }
 
     eq(field: string, value: any) {
-        this.filters[field+"[==]"] = value
+        this.filters[field + "[==]"] = value;
         return this;
     }
 
     notEq(field: string, value: any) {
-        this.filters[field+"[!=]"] = value
+        this.filters[field + "[!=]"] = value;
         return this;
     }
 
     in(field: string, value: any[]) {
-        this.filters[field+"[in]"] = value
+        this.filters[field + "[in]"] = value;
         return this;
     }
 
     notIn(field: string, value: any[]) {
-        this.filters[field+"[!in]"] = value
+        this.filters[field + "[!in]"] = value;
         return this;
     }
 
     matches(field: string, value: any[]) {
-        this.filters[field+"[matches]"] = value
+        this.filters[field + "[matches]"] = value;
         return this;
     }
 
     notMatches(field: string, value: any[]) {
-        this.filters[field+"[!matches]"] = value
+        this.filters[field + "[!matches]"] = value;
         return this;
     }
 
     has(field: string, value: any[]) {
-        this.filters[field+"[has]"] = value
+        this.filters[field + "[has]"] = value;
         return this;
     }
 
     notHas(field: string, value: any[]) {
-        this.filters[field]["!has"] = value
+        this.filters[field]["!has"] = value;
         return this;
     }
 
     contains(field: string, value: any[]) {
-        this.filters[field]["contains"] = value
+        this.filters[field]["contains"] = value;
         return this;
     }
 
     notContains(field: string, value: any[]) {
-        this.filters[field]["!contains"] = value
+        this.filters[field]["!contains"] = value;
         return this;
     }
 
     sort(field: string, asc = false) {
-        this.sorts[field] = asc? "ASC" : "DESC";
+        this.sorts[field] = asc ? "ASC" : "DESC";
         return this;
     }
 
@@ -201,13 +200,13 @@ export default class LenQuery<Type> {
         cb(events);
         this.listener = events;
     }
-    
-    clearFilters(){
-        this.filters = {}
+
+    clearFilters() {
+        this.filters = {};
     }
 
-    clearSorts(){
-        this.sorts = {}
+    clearSorts() {
+        this.sorts = {};
     }
 
     protected toWildCardPath(ref: string) {
@@ -218,7 +217,7 @@ export default class LenQuery<Type> {
             })
             .join("/");
     }
-    
+
     protected createWS() {
         let props = {
             subscriptionKey: this.#subscriptionKey,
@@ -236,49 +235,32 @@ export default class LenQuery<Type> {
                 let payload: any = e.data;
                 if (typeof e.data == "string") payload = JSON.parse(e.data);
                 if (payload.type == "add") {
-                    if (this.listener.getEvent("add")) {
+                    if (this.listener && this.listener.getEvent("add")) {
                         this.listener.getEvent("add")(payload?.data);
                     }
-                    if (payload?.data.key && payload?.index > -1) {
-                        if (
-                            !(
-                                payload?.index + 1 > this.#data.length &&
-                                this.page > 1
-                            )
-                        ) {
-                            if (this.limit == this.#data.length) {
-                                this.#data.pop();
-                            }
-                            this.#data = [payload?.data, ...this.#data];
-                            this.#count = payload?.count || payload.count;
-                            this.#reactiveCount.set(payload?.count);
-                            this.#reactiveData.set(this.#data);
-                            console.log(payload);
-                        }
-                    }
+                    this.#data = payload?.newData;
+                    this.#count = payload?.count || payload.count;
+                    this.#reactiveCount.set(payload?.count);
+                    this.#reactiveData.set(this.#data);
                 }
                 if (payload.type == "update") {
-                    if (this.listener.getEvent("update")) {
+                    if (this.listener && this.listener.getEvent("update")) {
                         this.listener.getEvent("update")(payload?.data);
                     }
-                    if (payload?.data.key && payload?.index > -1) {
-                        this.#data[payload?.index] = payload?.data;
-                        this.#count = payload?.count || payload.count;
-                        this.#reactiveCount.set(this.#count);
-                        this.#reactiveData.set(this.#data);
-                    }
+                    this.#data = payload?.newData;
+                    this.#count = payload?.count || payload.count;
+                    this.#reactiveCount.set(this.#count);
+                    this.#reactiveData.set(this.#data);
                 }
 
                 if (payload.type == "destroy") {
-                    if (this.listener.getEvent("destroy")) {
+                    if (this.listener && this.listener.getEvent("destroy")) {
                         this.listener.getEvent("destroy")(payload?.data);
                     }
-                    if (payload?.newData.length) {
-                        this.#data[payload?.index] = payload?.newData;
-                        this.#count = payload?.count || payload.count;
-                        this.#reactiveCount.set(this.#count);
-                        this.#reactiveData.set(this.#data);
-                    }
+                    this.#data = payload?.newData;
+                    this.#count = payload?.count || payload.count;
+                    this.#reactiveCount.set(this.#count);
+                    this.#reactiveData.set(this.#data);
                 }
             },
         });
@@ -353,74 +335,94 @@ export default class LenQuery<Type> {
                 this.ws = null;
                 this.#subscriptionKey = null;
             }
+
             //filter processing
-            if(clone.filters && isObject(clone.filters) &&  Object.entries(clone.filters).length){
-                let tempFilters = []
+            if (
+                clone.filters &&
+                isObject(clone.filters) &&
+                Object.entries(clone.filters).length
+            ) {
+                let tempFilters = [];
                 for (const entry of Object.entries(clone.filters)) {
-                    let key = entry[0]
-                    let value = entry[1]
-                    if(key.includes("[") || key.includes("]")){
-                        let start = key.indexOf("[")
-                        let end = key.indexOf("]")
-                        if(start == -1 || end == -1){
-                            throw new Error("Filter must be enclosed with []")
+                    let key = entry[0];
+                    let value = entry[1];
+                    if (key.includes("[") || key.includes("]")) {
+                        let start = key.indexOf("[");
+                        let end = key.indexOf("]");
+                        if (start == -1 || end == -1) {
+                            throw new Error("Filter must be enclosed with []");
                         }
-                        let filter = key.substring(start + 1,end)
-                        let field = key.substring(0,start)
-                        if(operatorBasis.includes(filter)){
-                            if(filter=="in" && !Array.isArray(value)) throw new Error("Invalid filter")
-                            if(filter=="between" && !Array.isArray(value)) throw new Error("Invalid filter")
+                        let filter = key.substring(start + 1, end);
+                        let field = key.substring(0, start);
+                        if (operatorBasis.includes(filter)) {
+                            if (filter == "in" && !Array.isArray(value))
+                                throw new Error("Invalid filter");
+                            if (filter == "between" && !Array.isArray(value))
+                                throw new Error("Invalid filter");
                             const alphaOperators = {
                                 eq: "==",
                                 neq: "!=",
                                 gt: ">",
                                 gte: ">=",
                                 lt: "<",
-                                lte: "<="
+                                lte: "<=",
+                            };
+                            if (filter.startsWith("not")) {
+                                let transformedFilter = Object.keys(
+                                    alphaOperators
+                                ).includes(filter.substring(2).toLowerCase())
+                                    ? alphaOperators[
+                                          filter.substring(2).toLowerCase()
+                                      ]
+                                    : filter.substring(2).toLowerCase();
+                                tempFilters.push([
+                                    field,
+                                    transformedFilter,
+                                    value,
+                                ]);
+                            } else {
+                                tempFilters.push([field, filter, value]);
                             }
-                            if(filter.startsWith("not")){
-                                let transformedFilter = Object.keys(alphaOperators).includes(filter.substring(2).toLowerCase()) ? 
-                                alphaOperators[filter.substring(2).toLowerCase()] : filter.substring(2).toLowerCase()
-                                tempFilters.push([field,transformedFilter,value])
-                            }else{
-                                tempFilters.push([field,filter,value])
-                            }
-                        }else{
-                            throw new Error("Invalid filter")
+                        } else {
+                            throw new Error("Invalid filter");
                         }
-                    }else{
-                        if(Array.isArray(value)){
-                            tempFilters.push([key,"in",value])
-                        }else{
-                            tempFilters.push([key,"==",value])
+                    } else {
+                        if (Array.isArray(value)) {
+                            tempFilters.push([key, "in", value]);
+                        } else {
+                            tempFilters.push([key, "==", value]);
                         }
                     }
                 }
                 //@ts-ignore
-                clone.filters = tempFilters
-            } else{
+                clone.filters = tempFilters;
+            } else {
                 //@ts-ignore
-                clone.filters = []
+                clone.filters = [];
             }
             if (clone.aggregates && clone?.aggregates.list.length) {
                 const { groupBy, list } = clone.aggregates;
                 //@ts-ignore
                 clone.aggregates = { groupBy, list };
             }
-            if(clone.sorts && isObject(clone.sorts) && Object.entries(clone.sorts).length){
-                let tempSorts = []
+            if (
+                clone.sorts &&
+                isObject(clone.sorts) &&
+                Object.entries(clone.sorts).length
+            ) {
+                let tempSorts = [];
                 for (const entry of Object.entries(clone.sorts)) {
-                    let key = entry[0]
-                    let value = entry[1]
-                    if(value == "ASC"){
-                        tempSorts.push([key,true])
-                    }else if(value== "DESC"){
-                        tempSorts.push([key,false])
+                    let key = entry[0];
+                    let value = entry[1];
+                    if (value == "ASC") {
+                        tempSorts.push([key, true]);
+                    } else if (value == "DESC") {
+                        tempSorts.push([key, false]);
                     }
                 }
                 //@ts-ignore
-                clone.sorts = tempSorts
-                console.log(tempSorts)
+                clone.sorts = tempSorts;
+                console.log(tempSorts);
             }
             this.controller = new AbortController();
             this.signal = this.controller.signal;
@@ -428,6 +430,7 @@ export default class LenQuery<Type> {
                 Promise.reject("Query Cancelled");
             };
             this.executing = true;
+            console.log(clone);
             let res: any = await this.http
                 .post("lenDB", {
                     signal: this.signal,
@@ -475,28 +478,28 @@ class Aggregate {
         this.groupBy = groupBy;
     }
 
-    sum(field: string,alias: string) {
-        this.list.push({ field, operation: "SUM", alias});
+    sum(field: string, alias: string) {
+        this.list.push({ field, operation: "SUM", alias });
         return this;
     }
 
-    count(field: string,alias: string) {
-        this.list.push({ field, operation: "COUNT",alias });
+    count(field: string, alias: string) {
+        this.list.push({ field, operation: "COUNT", alias });
         return this;
     }
 
-    min(field: string,alias: string) {
-        this.list.push({ field, operation: "MIN",alias });
+    min(field: string, alias: string) {
+        this.list.push({ field, operation: "MIN", alias });
         return this;
     }
 
-    max(field: string,alias: string) {
-        this.list.push({ field, operation: "MAX",alias });
+    max(field: string, alias: string) {
+        this.list.push({ field, operation: "MAX", alias });
         return this;
     }
-    
-    avg(field: string,alias: string) {
-        this.list.push({ field, operation: "AVG",alias });
+
+    avg(field: string, alias: string) {
+        this.list.push({ field, operation: "AVG", alias });
         return this;
     }
 }
@@ -508,19 +511,19 @@ class iLiveQuery {
     protected destroy: Function = null;
     protected initial: Function = null;
 
-    onAdd(cb: (e: any) => void) {
+    onAdd(cb: (e: any,allData:any[]) => void) {
         this.add = cb;
     }
 
-    onInitial(cb: (e: any) => void) {
+    onInitial(cb: (e: any,allData:any[]) => void) {
         this.initial = cb;
     }
 
-    onUpdate(cb: (e: any) => void) {
+    onUpdate(cb: (e: any,allData:any[]) => void) {
         this.update = cb;
     }
 
-    onDestroy(cb: (e: any) => void) {
+    onDestroy(cb: (e: any,allData:any[]) => void) {
         this.destroy = cb;
     }
 
@@ -564,5 +567,5 @@ const operatorBasis = [
     ">=",
     "<=",
     ">",
-    "<"
-]
+    "<",
+];

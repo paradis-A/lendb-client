@@ -34,7 +34,7 @@ export default class LenDB {
         const ObjectWrapper = IdentifiableSubclass(Object)
         return new ObjectWrapper(ref,keyOrSingular,this.http,this.#Emitter)
     }
-
+    
     Commit(data: Object[]){
         return Commit(data,this.http)
     }

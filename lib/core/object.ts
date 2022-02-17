@@ -3,7 +3,6 @@ import cloneDeep from "lodash/cloneDeep";
 import ky from "ky"
 import Normalize from "./normalize";
 import Emittery from "emittery";
-
 export default class LenObject{
     private http: typeof ky
     public key: string;
@@ -143,12 +142,8 @@ export default class LenObject{
         delete temp.ref
         delete temp.serializer
         delete temp.singular
+        delete temp.key
         Object.assign(this,temp)
-        if(temp.key  && !cuid.isCuid(temp.key)){
-            throw new Error("Invalid key")
-        }else{
-            delete temp.key
-        }
         return this
     }
 
