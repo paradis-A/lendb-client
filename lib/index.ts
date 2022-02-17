@@ -24,7 +24,7 @@ export default class LenDB {
         this.#Emitter = new Emittery()
         this.Auth = new Auth(this.http,this.baseURL,this.#Emitter);
     }
-
+    
     Object<T>(ref: string, keyOrSingular?: string | boolean): Object {
         function IdentifiableSubclass<Tbase extends Base>(SuperClass: Constructor<Tbase>) {
             class C extends (<Constructor<Base>>SuperClass) {

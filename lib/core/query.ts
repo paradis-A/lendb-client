@@ -6,6 +6,7 @@ import isObject from "lodash/isObject"
 import Sockette from "sockette";
 import Normalize from "./normalize";
 import { Writable, writable } from "svelte/store";
+
 export default class LenQuery<Type> {
     filters: any = {}
     sorts: { [any: string]: "ASC" | "DESC" | null } = {}
@@ -21,6 +22,7 @@ export default class LenQuery<Type> {
     #data: Type[] | any[] = [];
     #count: number = 0;
     #subscriptionKey: string;
+    protected aggregates: Aggregate;
     protected queueBeforeResult: any[] = [];
     protected operation: string;
     protected exclusion: string[] = [];
@@ -49,8 +51,6 @@ export default class LenQuery<Type> {
         this.#data = [];
         this.#count = 0;
     }
-
-
 
     get data(): Writable<Type[]> {
         return this.#reactiveData;
@@ -176,6 +176,12 @@ export default class LenQuery<Type> {
         return this;
     }
 
+    aggregate(groupBy: string, cb: (ops: Aggregate) => void | Aggregate) {
+        this.aggregates = new Aggregate(groupBy);
+        cb(this.aggregates);
+        return this;
+    }
+
     protected stripNonQuery(clone: this) {
         delete clone.emitter;
         delete clone.http;
@@ -278,7 +284,7 @@ export default class LenQuery<Type> {
         });
         this.listening = true;
     }
-    
+
     unsubscribe() {
         if (this.ws) {
             this.#subscriptionKey = null;
@@ -323,7 +329,7 @@ export default class LenQuery<Type> {
             if (!clone.searchString || typeof clone.searchString != "string") {
                 delete clone.searchString;
             }
-            //clear white spaces ons earch string
+            //clear white spaces on each string
             if (clone.searchString) {
                 console.log(clone.searchString);
                 let noWhiteSpace = clone.searchString.split(" ");
@@ -396,6 +402,11 @@ export default class LenQuery<Type> {
                 //@ts-ignore
                 clone.filters = []
             }
+            if (clone.aggregates && clone?.aggregates.list.length) {
+                const { groupBy, list } = clone.aggregates;
+                //@ts-ignore
+                clone.aggregates = { groupBy, list };
+            }
             if(clone.sorts && isObject(clone.sorts) && Object.entries(clone.sorts).length){
                 let tempSorts = []
                 for (const entry of Object.entries(clone.sorts)) {
@@ -453,6 +464,43 @@ export default class LenQuery<Type> {
     }
 }
 
+class Aggregate {
+    list: {
+        field: string;
+        operation: "SUM" | "COUNT" | "MIN" | "MAX" | "AVG";
+        alias: string;
+    }[] = [];
+    groupBy: string;
+    constructor(groupBy: string) {
+        this.groupBy = groupBy;
+    }
+
+    sum(field: string,alias: string) {
+        this.list.push({ field, operation: "SUM", alias});
+        return this;
+    }
+
+    count(field: string,alias: string) {
+        this.list.push({ field, operation: "COUNT",alias });
+        return this;
+    }
+
+    min(field: string,alias: string) {
+        this.list.push({ field, operation: "MIN",alias });
+        return this;
+    }
+
+    max(field: string,alias: string) {
+        this.list.push({ field, operation: "MAX",alias });
+        return this;
+    }
+    
+    avg(field: string,alias: string) {
+        this.list.push({ field, operation: "AVG",alias });
+        return this;
+    }
+}
+
 class iLiveQuery {
     callbacks: Function[] = [];
     protected add: Function = null;
@@ -483,8 +531,6 @@ class iLiveQuery {
         if (event == "initial") return this.initial;
     }
 }
-
-
 
 const operatorBasis = [
     "eq",

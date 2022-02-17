@@ -15,6 +15,7 @@ export default class LenQuery<Type> {
     page: number;
     executing: boolean;
     listening: boolean;
+    protected aggregates: Aggregate;
     protected queueBeforeResult: any[];
     protected operation: string;
     protected exclusion: string[];
@@ -52,6 +53,7 @@ export default class LenQuery<Type> {
     exclude(fields: string[]): this;
     include(fields: string[]): this;
     search(word: string): this;
+    aggregate(groupBy: string, cb: (ops: Aggregate) => void | Aggregate): this;
     protected stripNonQuery(clone: this): this;
     on(cb: (event: iLiveQuery) => void): void;
     clearFilters(): void;
@@ -69,6 +71,20 @@ export default class LenQuery<Type> {
         count: number;
     }>;
     cancel(): this;
+}
+declare class Aggregate {
+    list: {
+        field: string;
+        operation: "SUM" | "COUNT" | "MIN" | "MAX" | "AVG";
+        alias: string;
+    }[];
+    groupBy: string;
+    constructor(groupBy: string);
+    sum(field: string, alias: string): this;
+    count(field: string, alias: string): this;
+    min(field: string, alias: string): this;
+    max(field: string, alias: string): this;
+    avg(field: string, alias: string): this;
 }
 declare class iLiveQuery {
     callbacks: Function[];
