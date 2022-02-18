@@ -4,8 +4,6 @@ import { writable } from "svelte/store";
 import Emittery from "emittery";
 import isEqual from "lodash/isEqual";
 import Crypto from "simple-crypto-js";
-// import "uluru-crypto"
-// const {encrypt,decrypt} = Uluru
 export default class Auth {
     cache: boolean = true;
     //server must respond to encrypt the cache: the key will be based on the httpOnly cookie
@@ -38,7 +36,7 @@ export default class Auth {
         };
         emitter.on("set:client_key", () => {});
     }
-
+    
     #createStorageKey() {
         if (this.#client_key) {
             this.#crypto = new Crypto(this.#client_key);
@@ -51,7 +49,7 @@ export default class Auth {
             );
         }
     }
-
+    
     async Login(usernameOrEmail: string, password: string) {
         try {
             await this.Logout()
@@ -88,6 +86,10 @@ export default class Auth {
         }
     }
 
+    on(event: "logout" | "login" | "update",callback: ()=> void){
+
+    }
+
     isValidEmail(email: string) {
         String(email)
             .toLowerCase()
@@ -102,7 +104,6 @@ export default class Auth {
             .filter((ls) => ls.startsWith("cache:" + this.baseUrl));
         keys.forEach((k) => localStorage.removeItem(k));
     }
-
 
     async Register(credentials: {
         username: string;

@@ -26,8 +26,7 @@
     "ky": "^0.28.7",
     "lodash": "^4.17.21",
     "simple-crypto-js": "^3.0.1",
-    "sockette": "^2.0.6",
-    "uluru-crypto": "^3.3.0"
+    "sockette": "^2.0.6"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^21.0.1",

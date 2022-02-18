@@ -49,6 +49,8 @@ export default class LenQuery<Type> {
         this.#reactiveCount = writable(0);
         this.#data = [];
         this.#count = 0;
+        //TODO: listen on login change websocket subscription key
+        // this.emitter.on("change")
     }
 
     get data(): Writable<Type[]> {
@@ -228,12 +230,15 @@ export default class LenQuery<Type> {
             onopen: () => {
                 this.ws.send(JSON.stringify(props));
             },
-            onerror: () => { 
-                this.ws.open()
+            onerror: async () => {
+                let res: any = await this.http
+                .post("lenDB")
+                .json(); 
                 props = {
                     subscriptionKey: this.#subscriptionKey,
                     query: builtQuery,
-                    reconnect: true
+                    reconnect: true,
+                    key: res.key
                 }
             },
             onmessage: (e) => {

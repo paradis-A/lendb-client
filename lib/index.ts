@@ -5,6 +5,7 @@ import ky from "ky"
 import LenFile from "./core/file";
 import Commit from "./core/commit"
 import Emittery from "emittery";
+
 export default class LenDB {
     readonly Auth: Auth;
     readonly http: typeof ky
@@ -34,7 +35,7 @@ export default class LenDB {
         const ObjectWrapper = IdentifiableSubclass(Object)
         return new ObjectWrapper(ref,keyOrSingular,this.http,this.#Emitter)
     }
-    
+
     Commit(data: Object[]){
         return Commit(data,this.http)
     }

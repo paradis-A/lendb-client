@@ -7,6 +7,7 @@ export default class Auth {
     private baseUrl;
     constructor(http: typeof ky, baseUrl?: string, emitter?: Emittery);
     Login(usernameOrEmail: string, password: string): Promise<any>;
+    on(event: "logout" | "login" | "update", callback: () => void): void;
     isValidEmail(email: string): void;
     Register(credentials: {
         username: string;
