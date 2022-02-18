@@ -218,18 +218,23 @@ export default class LenQuery<Type> {
             .join("/");
     }
 
-    protected createWS() {
-        let props = {
+    protected createWS(builtQuery: any) {
+        let props: any = {
             subscriptionKey: this.#subscriptionKey,
         };
         this.ws = new Sockette(this.wsUrl + "/lenDB", {
             timeout: 5e3,
-            maxAttempts: 10,
+            maxAttempts: Infinity,
             onopen: () => {
                 this.ws.send(JSON.stringify(props));
             },
-            onreconnect: () => {
-                this.ws.send(JSON.stringify(props));
+            onerror: () => { 
+                this.ws.open()
+                props = {
+                    subscriptionKey: this.#subscriptionKey,
+                    query: builtQuery,
+                    reconnect: true
+                }
             },
             onmessage: (e) => {
                 let payload: any = e.data;
@@ -313,7 +318,6 @@ export default class LenQuery<Type> {
             }
             //clear white spaces on each string
             if (clone.searchString) {
-                console.log(clone.searchString);
                 let noWhiteSpace = clone.searchString.split(" ");
                 if (noWhiteSpace.every((v) => v == "")) {
                     delete clone.searchString;
@@ -322,20 +326,6 @@ export default class LenQuery<Type> {
                     delete clone.searchString;
                 }
             }
-            this.unsubscribe();
-            this.listening = false;
-            if (options.live == true) {
-                this.#subscriptionKey = cuid();
-                //@ts-ignore
-                clone.subscriptionKey = this.#subscriptionKey;
-                //@ts-ignore
-                clone.live = true;
-                this.createWS();
-            } else {
-                this.ws = null;
-                this.#subscriptionKey = null;
-            }
-
             //filter processing
             if (
                 clone.filters &&
@@ -422,7 +412,19 @@ export default class LenQuery<Type> {
                 }
                 //@ts-ignore
                 clone.sorts = tempSorts;
-                console.log(tempSorts);
+            }
+            this.unsubscribe();
+            this.listening = false;
+            if (options.live == true) {
+                this.#subscriptionKey = cuid();
+                //@ts-ignore
+                clone.subscriptionKey = this.#subscriptionKey;
+                //@ts-ignore
+                clone.live = true;
+                this.createWS(clone);
+            } else {
+                this.ws = null;
+                this.#subscriptionKey = null;
             }
             this.controller = new AbortController();
             this.signal = this.controller.signal;
@@ -430,7 +432,6 @@ export default class LenQuery<Type> {
                 Promise.reject("Query Cancelled");
             };
             this.executing = true;
-            console.log(clone);
             let res: any = await this.http
                 .post("lenDB", {
                     signal: this.signal,
@@ -443,6 +444,7 @@ export default class LenQuery<Type> {
                     return Normalize(data);
                 });
             }
+
             this.#data = tempData;
             this.#count = res.count;
             this.#reactiveData.set(tempData);

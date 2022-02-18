@@ -59,7 +59,7 @@ export default class LenQuery<Type> {
     clearFilters(): void;
     clearSorts(): void;
     protected toWildCardPath(ref: string): string;
-    protected createWS(): void;
+    protected createWS(builtQuery: any): void;
     unsubscribe(): void;
     execute(options?: {
         page?: number;
