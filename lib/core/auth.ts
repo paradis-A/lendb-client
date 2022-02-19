@@ -146,11 +146,9 @@ export default class Auth {
             return Promise.reject(error);
         }
     }
-
+    
     async Logout() {
         try {
-            //delete all the key starts with the unhashed key i.e. http://localhost:1337
-            // this.#storage.remove(this.#storageKey);
             this.#removeCached();
             this.#svelteStorage.set({});
             this.#client_key = undefined;
@@ -229,6 +227,9 @@ export default class Auth {
             }
             return Promise.resolve(data);
         } catch (error) {
+            if(error == "Invalid Token"){
+                this.Logout()
+            }
             return Promise.reject(error);
         }
     }
