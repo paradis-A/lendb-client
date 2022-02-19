@@ -44,7 +44,7 @@ export default class LenDB {
         return new LenFile(file,this.baseURL,this.http,this.#Emitter);
     }
     Query<T>(ref: string) {
-        return new Query<T>(ref,this.http,this.wsURL,this.#Emitter);
+        return new Query<T>(ref,this.http,this.wsURL,this.#Emitter,this.Auth);
     }
 }
 

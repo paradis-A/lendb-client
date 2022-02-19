@@ -8,10 +8,6 @@ export default class LenObject {
     protected loadedRawData: any;
     protected childProps: string[];
     protected singular: boolean;
-    protected eventHandles: {
-        emit?: boolean;
-        hook?: boolean;
-    };
     protected httpSettings: any;
     private emitter;
     constructor(ref: string, singularOrKey?: boolean | string, http?: typeof ky, emitter?: Emittery);

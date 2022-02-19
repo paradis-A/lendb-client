@@ -11,7 +11,6 @@ export default class LenObject{
     protected loadedRawData: any;
     protected childProps: string[];
     protected singular: boolean = false;
-    protected eventHandles: {emit?:boolean, hook?:boolean} = {hook: true, emit: true}
     protected httpSettings: any
     private emitter: Emittery
     constructor(ref: string, singularOrKey: boolean | string = false,http?: typeof ky,emitter?: Emittery) {
@@ -169,7 +168,6 @@ export default class LenObject{
     toObject() {
         let temp =  cloneDeep(this)
         delete temp.childProps
-        delete temp.eventHandles
         delete temp.loadedRawData
         delete temp.singular
         delete temp.ref

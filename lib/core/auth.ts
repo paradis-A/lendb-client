@@ -5,7 +5,6 @@ import Emittery from "emittery";
 import isEqual from "lodash/isEqual";
 import Crypto from "simple-crypto-js";
 export default class Auth {
-    cache: boolean = true;
     //server must respond to encrypt the cache: the key will be based on the httpOnly cookie
     #storageKey: string;
     #http: typeof ky;
@@ -21,22 +20,22 @@ export default class Auth {
         window.onstorage = (ev: StorageEvent) => {
             //check if starts with the  cached key is called then decrypt it
             let matched = ev.key.startsWith("cache:" + this.baseUrl);
-            if (this.cache) {
-                if (matched) {
-                    if (!this.#client_key) {
-                        this.Authenticate();
-                    } else {
-                        if (ev.newValue == null) {
-                            this.#client_key = null;
-                            this.Logout()
-                        }
+            if (matched) {
+                if (!this.#client_key) {
+                    this.Authenticate().then(()=>{
+                        this.emitter.emit("login")
+                    })
+                } else {
+                    if (ev.newValue == null) {
+                        this.#client_key = null;
+                        this.Logout();
                     }
+                    this.emitter.emit("logout")
                 }
             }
         };
-        emitter.on("set:client_key", () => {});
     }
-    
+
     #createStorageKey() {
         if (this.#client_key) {
             this.#crypto = new Crypto(this.#client_key);
@@ -49,10 +48,10 @@ export default class Auth {
             );
         }
     }
-    
+
     async Login(usernameOrEmail: string, password: string) {
         try {
-            await this.Logout()
+            this.#removeCached();
             if (typeof usernameOrEmail != "string") {
                 return Promise.resolve("Invalid username/email format");
             }
@@ -68,25 +67,20 @@ export default class Auth {
                     }),
                 })
                 .json();
-            if (this.cache) {
-                const { data, client_key } = res;
-                this.#removeCached();
-                this.#client_key = client_key;
-                this.#storageKey = this.#createStorageKey();
-                this.emitter.emit("set:client_key", this.#client_key);
-                localStorage.setItem(
-                    this.#storageKey,
-                    this.#crypto.encrypt(res)
-                );
-                this.#svelteStorage.set(data);
-            }
+            const { data, client_key } = res;
+            this.#client_key = client_key;
+            this.#storageKey = this.#createStorageKey();
+            this.emitter.emit("set:client_key", this.#client_key);
+            localStorage.setItem(this.#storageKey, this.#crypto.encrypt(res));
+            this.#svelteStorage.set(data);
+            this.emitter.emit("login")
             return Promise.resolve(res);
         } catch (error) {
             return Promise.reject(error);
         }
     }
 
-    on(event: "logout" | "login" | "update",callback: ()=> void){
+    on(event: "logout" | "login" | "update", callback: () => void) {
 
     }
 
@@ -100,7 +94,7 @@ export default class Auth {
 
     #removeCached() {
         let keys = Object.entries(localStorage)
-            .map((ls) => typeof ls[0]=="string"? ls[0] : "ignore")
+            .map((ls) => (typeof ls[0] == "string" ? ls[0] : "ignore"))
             .filter((ls) => ls.startsWith("cache:" + this.baseUrl));
         keys.forEach((k) => localStorage.removeItem(k));
     }
@@ -135,18 +129,15 @@ export default class Auth {
                         body: JSON.stringify(credentials),
                     })
                     .json();
-                if (this.cache) {
-                    const { data, client_key } = res;
-                    console.log(client_key);
-                    this.#client_key = client_key;
-                    this.#storageKey = this.#createStorageKey();
-                    this.emitter.emit("set:client_key", this.#client_key);
-                    localStorage.setItem(
-                        this.#storageKey,
-                        this.#crypto.encrypt(res)
-                    );
-                    this.#svelteStorage.set(data);
-                }
+                const { data, client_key } = res;
+                this.#client_key = client_key;
+                this.#storageKey = this.#createStorageKey();
+                this.emitter.emit("set:client_key", this.#client_key);
+                localStorage.setItem(
+                    this.#storageKey,
+                    this.#crypto.encrypt(res)
+                );
+                this.#svelteStorage.set(data);
                 return Promise.resolve(res);
             } else {
                 return Promise.reject("credentials argument expected");
@@ -162,13 +153,13 @@ export default class Auth {
             // this.#storage.remove(this.#storageKey);
             this.#removeCached();
             this.#svelteStorage.set({});
-            this.emitter.emit("remove:client_key");
             this.#client_key = undefined;
             let res = await this.#http
                 .post("lenDB_Auth", {
                     body: JSON.stringify({ type: "logout" }),
                 })
                 .json();
+            this.emitter.emit("logout")
             return Promise.resolve(res);
         } catch (error) {
             return Promise.reject(error);
@@ -190,21 +181,10 @@ export default class Auth {
             return Promise.reject(error);
         }
     }
-
-    Me(svelteStore = false) {
-        if (this.cache) {
-            if (svelteStore) {
-                this.Authenticate();
-                return this.#svelteStorage;
-            } else {
-                if (this.#client_key) {
-                } else {
-                    return null;
-                }
-            }
-        } else {
-            return null;
-        }
+    
+    Me() {
+        this.Authenticate();
+        return Object.assign(this.#svelteStorage);
     }
 
     async Authenticate() {
@@ -218,43 +198,34 @@ export default class Auth {
             const { data, client_key } = res;
             if (client_key && data) {
                 // this.#removeCached()
-                if (this.cache) {
-                    this.#client_key = client_key;
-                    // this.#storageKey = this.#createStorageKey();
-                    this.#crypto = new Crypto(this.#client_key);
-                    const suffix = "cache:" + this.baseUrl;
-                    const foundStorageKey = Object.entries(localStorage).find(
-                        (ls) => typeof ls[0] == "string" && ls[0].startsWith(suffix)
+                this.#client_key = client_key;
+                // this.#storageKey = this.#createStorageKey();
+                this.#crypto = new Crypto(this.#client_key);
+                const suffix = "cache:" + this.baseUrl;
+                const foundStorageKey = Object.entries(localStorage).find(
+                    (ls) => typeof ls[0] == "string" && ls[0].startsWith(suffix)
+                );
+                if (foundStorageKey) {
+                    const currentStorageKey = foundStorageKey[0];
+                    const matched = this.#crypto.decrypt(
+                        currentStorageKey.substring(suffix.length)
                     );
-                    if (foundStorageKey) {
-                        const currentStorageKey = foundStorageKey[0]
-                        const matched = this.#crypto.decrypt(
-                            currentStorageKey.substring(suffix.length)
-                        );
-                        if ("you got me!" === matched) {
-                            const currentlyStored =
-                                localStorage.getItem(currentStorageKey);
-                            const decrypted =
-                                this.#crypto.decrypt(currentlyStored);
-                            if (!isEqual(decrypted, data)) {
-                                localStorage.setItem(
-                                    currentStorageKey,
-                                    this.#crypto.encrypt(data)
-                                );
-                            }
+                    if ("you got me!" === matched) {
+                        const currentlyStored =
+                            localStorage.getItem(currentStorageKey);
+                        const decrypted = this.#crypto.decrypt(currentlyStored);
+                        if (!isEqual(decrypted, data)) {
+                            localStorage.setItem(
+                                currentStorageKey,
+                                this.#crypto.encrypt(data)
+                            );
                         }
-                    } else {
-                        await this.Logout();
                     }
-                    this.emitter.emit("set:client_key", this.#client_key);
-                    // localStorage.setItem(
-                    //     this.#storageKey,
-                    //     this.#crypto.encrypt(data)
-                    // );
-                    this.#svelteStorage.set(data);
                 } else {
-                    this.#removeCached();
+                    await this.Logout();
                 }
+                this.emitter.emit("set:client_key", this.#client_key);
+                this.#svelteStorage.set(data);
             }
             return Promise.resolve(data);
         } catch (error) {

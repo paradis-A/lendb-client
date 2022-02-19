@@ -2,7 +2,6 @@ import ky from "ky";
 import Emittery from "emittery";
 export default class Auth {
     #private;
-    cache: boolean;
     emitter: Emittery;
     private baseUrl;
     constructor(http: typeof ky, baseUrl?: string, emitter?: Emittery);
@@ -16,7 +15,7 @@ export default class Auth {
     }): Promise<any>;
     Logout(): Promise<unknown>;
     Update(userInfo: any): Promise<unknown>;
-    Me(svelteStore?: boolean): import("svelte/store").Writable<{}>;
+    Me(): any;
     Authenticate(): Promise<any>;
 }
 //# sourceMappingURL=auth.d.ts.map

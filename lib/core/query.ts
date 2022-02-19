@@ -5,6 +5,7 @@ import cloneDeep from "lodash/cloneDeep";
 import isObject from "lodash/isObject";
 import Sockette from "sockette";
 import Normalize from "./normalize";
+import Auth from "./auth";
 import { Writable, writable } from "svelte/store";
 export default class LenQuery<Type> {
     filters: any = {};
@@ -16,6 +17,7 @@ export default class LenQuery<Type> {
     page: number = 0;
     executing: boolean = false;
     listening: boolean = false;
+    authenticating: boolean = false
     #reactiveData: Writable<Type[] | any[]>;
     #reactiveCount: Writable<number>;
     #data: Type[] | any[] = [];
@@ -31,6 +33,8 @@ export default class LenQuery<Type> {
     protected controller!: AbortController;
     protected signal!: AbortSignal;
     protected ws: Sockette;
+    #auth: Auth
+    #ws_key: string
     searchString: string;
     http: typeof ky;
     private wsUrl: string;
@@ -38,7 +42,8 @@ export default class LenQuery<Type> {
         ref: string,
         http: typeof ky,
         wsUrl: string,
-        emitter: Emittery
+        emitter: Emittery,
+        auth: Auth
     ) {
         this.ref = ref;
         this.http = http;
@@ -49,8 +54,24 @@ export default class LenQuery<Type> {
         this.#reactiveCount = writable(0);
         this.#data = [];
         this.#count = 0;
-        //TODO: listen on login change websocket subscription key
+        this.#auth = auth
         // this.emitter.on("change")
+        this.emitter.on("login", ()=>{
+            if(this.listening){
+                this.ws.reconnect()
+            }
+            if(this.executing){
+                this.cancel()
+            }
+        })
+        
+        this.emitter.on("logout",()=>{
+            this.#ws_key = null
+            if(this.listening || this.executing){
+                this.cancel()
+            }
+        })
+
     }
 
     get data(): Writable<Type[]> {
@@ -227,19 +248,40 @@ export default class LenQuery<Type> {
         this.ws = new Sockette(this.wsUrl + "/lenDB", {
             timeout: 5e3,
             maxAttempts: Infinity,
-            onopen: () => {
+            onopen: async () => {
+                if(this.authenticating){
+                    alert("authenticating")
+                    return
+                }
+                let res: any = await this.http
+                .post("lenDB_Auth",{body: JSON.stringify({type:"authenticate_ws"})})
+                .json();
+                this.authenticating = false
+                if(this.#ws_key && res?.public == true){
+                    this.#ws_key = null
+                }
+                if(res.key) this.#ws_key = res.key
+                if(res.public) props.public = res.public
+                props.key = this.#ws_key
                 this.ws.send(JSON.stringify(props));
+                delete props.reconnect
             },
             onerror: async () => {
-                let res: any = await this.http
-                .post("lenDB")
-                .json(); 
-                props = {
-                    subscriptionKey: this.#subscriptionKey,
-                    query: builtQuery,
-                    reconnect: true,
-                    key: res.key
+                if(!this.authenticating){
+                    props = {
+                        subscriptionKey: this.#subscriptionKey,
+                        query: builtQuery,
+                        reconnect: true,
+                    }
                 }
+            },
+            onreconnect: ()=>{
+                if(!this.authenticating){
+                    this.ws.open()
+                }
+            },
+            onclose: ()=>{
+                this.listening = false
             },
             onmessage: (e) => {
                 let payload: any = e.data;
@@ -469,6 +511,8 @@ export default class LenQuery<Type> {
         if (this.controller) {
             this.controller.abort();
             this.executing = false;
+            this.ws.close()
+            this.listening = false
         }
         return this;
     }
