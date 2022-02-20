@@ -1,12 +1,13 @@
 import Emittery from "emittery";
 import cuid from "cuid";
-import { AxiosInstance } from "axios/dist/axios.min.js";
+import Axios, { AxiosInstance } from "axios/dist/axios.min.js";
 import cloneDeep from "lodash/cloneDeep";
 import isObject from "lodash/isObject";
 import Sockette from "sockette";
 import Normalize from "./normalize";
 import Auth from "./auth";
 import { Writable, writable } from "svelte/store";
+import pWaitFor from "./pwaitfor";
 export default class LenQuery<Type> {
     filters: any = {};
     sorts: { [any: string]: "ASC" | "DESC" | null } = {};
@@ -22,6 +23,8 @@ export default class LenQuery<Type> {
     #reactiveCount: Writable<number>;
     #data: Type[] | any[] = [];
     #count: number = 0;
+    #initialDataReceived = false
+    timeout = 60000
     #subscriptionKey: string;
     protected aggregates: Aggregate;
     protected queueBeforeResult: any[] = [];
@@ -47,19 +50,17 @@ export default class LenQuery<Type> {
         this.#reactiveCount = writable(0);
         this.#data = [];
         this.#count = 0;
-        
         this.emitter.on("login", () => {
             if (this.listening) {
                 this.cancel();
-                this.execute()
+                this.execute();
             }
         });
-
         this.emitter.on("logout", () => {
             this.#ws_key = null;
             if (this.listening || this.executing) {
                 this.cancel();
-                this.unsubscribe()
+                this.unsubscribe();
             }
         });
     }
@@ -231,81 +232,124 @@ export default class LenQuery<Type> {
     }
 
     protected createWS(builtQuery: any) {
-        let props: any = {
-            subscriptionKey: this.#subscriptionKey,
-        };
-        this.ws = new Sockette(this.wsUrl + "/lenDB", {
-            timeout: 5e3,
-            maxAttempts: Infinity,
-            onopen: async () => {
-                if (this.authenticating) {
-                    alert("authenticating");
-                    return;
-                }
-                let res: any = (await this.#http
-                    .post("lenDB_Auth", JSON.stringify( { type: "authenticate_ws"  }))).data
-                    
-                this.authenticating = false;
-                if (this.#ws_key && res?.public == true) {
-                    this.#ws_key = null;
-                }
-                if (res.key) this.#ws_key = res.key;
-                if (res.public) props.public = res.public;
-                props.key = this.#ws_key;
-                this.ws.send(JSON.stringify(props));
-                delete props.reconnect;
-            },
-            onerror: async () => {
-                if (!this.authenticating) {
-                    props = {
-                        subscriptionKey: this.#subscriptionKey,
-                        query: builtQuery,
-                        reconnect: true,
-                    };
-                }
-            },
-            onreconnect: () => {
-                if (!this.authenticating) {
-                    this.ws.open();
-                }
-            },
-            onclose: () => {
-                this.listening = false;
-            },
-            onmessage: (e) => {
-                let payload: any = e.data;
-                if (typeof e.data == "string") payload = JSON.parse(e.data);
-                if (payload.type == "add") {
-                    if (this.listener && this.listener.getEvent("add")) {
-                        this.listener.getEvent("add")(payload?.data);
+        try {
+            let props: any = {
+                subscriptionKey: this.#subscriptionKey,
+                query: builtQuery,
+            };
+            let ws_auth_canceller = Axios.CancelToken.source();
+            this.ws = new Sockette(this.wsUrl + "/lenDB", {
+                timeout: 5e3,
+                maxAttempts: Infinity,
+                onopen: () => {
+                    if (!this.authenticating) {
+                        this.authenticating = true;
+                        const ws_authenticator = Object.assign(Axios, this.#http);
+                        ws_authenticator
+                            .post("lenDB_Auth", JSON.stringify({ type: "authenticate_ws" }), {
+                                timeout: Infinity,
+                                cancelToken: ws_auth_canceller.token,
+                            })
+                            .then((r) => {
+                                const res = r.data;
+                                this.authenticating = false;
+                                if (this.#ws_key && res?.public == true) {
+                                    this.#ws_key = null;
+                                }
+                                if (res.key) this.#ws_key = res.key;
+                                if (res.public) props.public = res.public;
+                                props.key = this.#ws_key;
+                                this.ws.send(JSON.stringify(props));
+                            })
+                            .catch((e) => {
+                                console.log("Cannot authenticate websocket connection. Retrying.");
+                            });
+                        delete props.reconnect;
                     }
-                    this.#data = payload?.newData;
-                    this.#count = payload?.count || payload.count;
-                    this.#reactiveCount.set(payload?.count);
-                    this.#reactiveData.set(this.#data);
-                }
-                if (payload.type == "update") {
-                    if (this.listener && this.listener.getEvent("update")) {
-                        this.listener.getEvent("update")(payload?.data);
-                    }
-                    this.#data = payload?.newData;
-                    this.#count = payload?.count || payload.count;
-                    this.#reactiveCount.set(this.#count);
-                    this.#reactiveData.set(this.#data);
-                }
+                },
+                onerror: (e) => {
 
-                if (payload.type == "destroy") {
-                    if (this.listener && this.listener.getEvent("destroy")) {
-                        this.listener.getEvent("destroy")(payload?.data);
+                    if (!this.authenticating) {
+                        props.reconnect = true
+                    } else {
+                        ws_auth_canceller.cancel();
                     }
-                    this.#data = payload?.newData;
-                    this.#count = payload?.count || payload.count;
-                    this.#reactiveCount.set(this.#count);
-                    this.#reactiveData.set(this.#data);
-                }
-            },
-        });
-        this.listening = true;
+                },
+                onreconnect: () => {
+                    console.log("Disconnected to the server. Reconnecting.");
+                },
+                onclose: () => {
+                    this.listening = false;
+                },
+                onmessage: (e) => {
+                    let payload: any = e.data;
+                    if (typeof e.data == "string") payload = JSON.parse(e.data);
+                    if (payload.type == "add") {
+                        if (this.listener && this.listener.getEvent("add")) {
+                            this.listener.getEvent("add")(payload?.newData);
+                        }
+                        let tempData = payload?.data
+                        if (tempData && Array.isArray(tempData)) {
+                            tempData = tempData.map((data) => {
+                                return Normalize(data);
+                            });
+                        }
+                        this.#data = tempData
+                        this.#count = payload?.count || payload.count;
+                        this.#reactiveCount.set(this.#count);
+                        this.#reactiveData.set(this.#data);
+                    }
+                    if (payload.type == "update") {
+                        if (this.listener && this.listener.getEvent("update")) {
+                            this.listener.getEvent("update")(payload?.newData);
+                        }
+                        let tempData = payload?.data
+                        if (tempData && Array.isArray(tempData)) {
+                            tempData = tempData.map((data) => {
+                                return Normalize(data);
+                            });
+                        }
+                        this.#data = tempData
+                        this.#count = payload?.count || payload.count;
+                        this.#reactiveCount.set(this.#count);
+                        this.#reactiveData.set(this.#data);
+                    }
+
+                    if (payload.type == "initialdata") {
+                        let tempData = payload?.data
+                        if (tempData && Array.isArray(tempData)) {
+                            tempData = tempData.map((data) => {
+                                return Normalize(data);
+                            });
+                        }
+                        this.#data = tempData
+                        this.#count = payload?.count || payload.count;
+                        this.#reactiveCount.set(this.#count);
+                        this.#reactiveData.set(this.#data);
+                        this.#initialDataReceived = true
+                    }
+
+                    if (payload.type == "destroy") {
+                        if (this.listener && this.listener.getEvent("destroy")) {
+                            this.listener.getEvent("destroy")(payload?.newData);
+                        }
+                        let tempData = payload?.data
+                        if (tempData && Array.isArray(tempData)) {
+                            tempData = tempData.map((data) => {
+                                return Normalize(data);
+                            });
+                        }
+                        this.#data = tempData
+                        this.#count = payload?.count || payload.count;
+                        this.#reactiveCount.set(this.#count);
+                        this.#reactiveData.set(this.#data);
+                    }
+                },
+            });
+            this.listening = true;
+        } catch (error) {
+            console.log(error);
+        }
     }
 
     unsubscribe() {
@@ -322,8 +366,9 @@ export default class LenQuery<Type> {
             limit?: number;
             searchString?: string;
             live: boolean;
+            timeout?: number
         } = {
-            live: true,
+            live: true
         }
     ): Promise<{ data: Type[]; count: number }> {
         try {
@@ -334,13 +379,17 @@ export default class LenQuery<Type> {
             if (this.executing) {
                 this.cancel();
             }
-            const { page, limit } = options;
+            const { page, limit,timeout } = options;
             if (page && typeof page == "number") {
                 this.page = page;
             }
             if (limit && typeof limit == "number") {
                 this.limit = limit;
             }
+            if (timeout && typeof timeout == "number") {
+                this.timeout = timeout;
+            }
+
             if (typeof options.searchString == "string") {
                 this.searchString = options.searchString;
             }
@@ -431,42 +480,48 @@ export default class LenQuery<Type> {
             }
             this.unsubscribe();
             this.listening = false;
-            if (options.live == true) {
-                this.#subscriptionKey = cuid();
-                //@ts-ignore
-                clone.subscriptionKey = this.#subscriptionKey;
+            this.executing = true;
+            let res: any = { data: [], count: 0 };
+            let tempData = [];
+            if (!options.live) {
+                this.ws = null
+                this.controller = new AbortController();
+                this.signal = this.controller.signal;
+                this.signal.onabort = () => {
+                    Promise.reject("Query Cancelled");
+                };
+                res = (await this.#http.post("lenDB", JSON.stringify(clone), { signal: this.signal })).data;
+                tempData = res.data
+                if (tempData && Array.isArray(tempData)) {
+                    tempData = tempData.map((data) => {
+                        return Normalize(data);
+                    });
+                }
+                this.#data = tempData;
+                this.#count = res.count;
+                this.#reactiveData.set(tempData);
+                this.#reactiveCount.set(res?.count);
+                res.data = this.#data 
+                this.executing = false
+                return Promise.resolve(res);
+            }else{
                 //@ts-ignore
                 clone.live = true;
                 this.createWS(clone);
-            } else {
-                this.ws = null;
-                this.#subscriptionKey = null;
+                await pWaitFor(()=>{
+                    return this.#initialDataReceived
+                },timeout)
+                this.executing = false
+                this.listening = true
+                this.#initialDataReceived = false
+                return Promise.resolve({count: this.#count,data: this.#data});
             }
-            this.controller = new AbortController();
-            this.signal = this.controller.signal;
-            this.signal.onabort = () => {
-                Promise.reject("Query Cancelled");
-            };
-            this.executing = true;
-            let res: any = (await this.#http
-                .post("lenDB",  JSON.stringify(clone), {signal: this.signal} )).data
-            let tempData = res?.data;
-            if (tempData && Array.isArray(tempData)) {
-                tempData = tempData.map((data) => {
-                    return Normalize(data);
-                });
-            }
-            this.#data = tempData;
-            this.#count = res.count;
-            this.#reactiveData.set(tempData);
-            this.#reactiveCount.set(res?.count);
-            res.data = tempData;
-            // this.executing = false
-            return Promise.resolve(res);
+          
         } catch (error) {
             this.executing = false;
             this.listening = false;
             this.ws = null;
+            this.ws.close()
             return Promise.reject(error);
         }
     }

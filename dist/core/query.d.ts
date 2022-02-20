@@ -17,6 +17,7 @@ export default class LenQuery<Type> {
     executing: boolean;
     listening: boolean;
     authenticating: boolean;
+    timeout: number;
     protected aggregates: Aggregate;
     protected queueBeforeResult: any[];
     protected operation: string;
@@ -67,6 +68,7 @@ export default class LenQuery<Type> {
         limit?: number;
         searchString?: string;
         live: boolean;
+        timeout?: number;
     }): Promise<{
         data: Type[];
         count: number;
