@@ -17,7 +17,7 @@ export default class LenQuery<Type> {
     page: number = 0;
     executing: boolean = false;
     listening: boolean = false;
-    authenticating: boolean = false
+    authenticating: boolean = false;
     #reactiveData: Writable<Type[] | any[]>;
     #reactiveCount: Writable<number>;
     #data: Type[] | any[] = [];
@@ -33,18 +33,11 @@ export default class LenQuery<Type> {
     protected controller!: AbortController;
     protected signal!: AbortSignal;
     protected ws: Sockette;
-    #auth: Auth
-    #ws_key: string
+    #ws_key: string;
     searchString: string;
     http: typeof ky;
     private wsUrl: string;
-    constructor(
-        ref: string,
-        http: typeof ky,
-        wsUrl: string,
-        emitter: Emittery,
-        auth: Auth
-    ) {
+    constructor(ref: string, http: typeof ky, wsUrl: string, emitter: Emittery, auth: Auth) {
         this.ref = ref;
         this.http = http;
         this.wsUrl = wsUrl;
@@ -54,24 +47,21 @@ export default class LenQuery<Type> {
         this.#reactiveCount = writable(0);
         this.#data = [];
         this.#count = 0;
-        this.#auth = auth
-        // this.emitter.on("change")
-        this.emitter.on("login", ()=>{
-            if(this.listening){
-                this.ws.reconnect()
-            }
-            if(this.executing){
-                this.cancel()
-            }
-        })
         
-        this.emitter.on("logout",()=>{
-            this.#ws_key = null
-            if(this.listening || this.executing){
-                this.cancel()
+        this.emitter.on("login", () => {
+            if (this.listening) {
+                this.cancel();
+                this.execute()
             }
-        })
+        });
 
+        this.emitter.on("logout", () => {
+            this.#ws_key = null;
+            if (this.listening || this.executing) {
+                this.cancel();
+                this.unsubscribe()
+            }
+        });
     }
 
     get data(): Writable<Type[]> {
@@ -249,39 +239,39 @@ export default class LenQuery<Type> {
             timeout: 5e3,
             maxAttempts: Infinity,
             onopen: async () => {
-                if(this.authenticating){
-                    alert("authenticating")
-                    return
+                if (this.authenticating) {
+                    alert("authenticating");
+                    return;
                 }
                 let res: any = await this.http
-                .post("lenDB_Auth",{body: JSON.stringify({type:"authenticate_ws"})})
-                .json();
-                this.authenticating = false
-                if(this.#ws_key && res?.public == true){
-                    this.#ws_key = null
+                    .post("lenDB_Auth", { body: JSON.stringify({ type: "authenticate_ws" }) })
+                    .json();
+                this.authenticating = false;
+                if (this.#ws_key && res?.public == true) {
+                    this.#ws_key = null;
                 }
-                if(res.key) this.#ws_key = res.key
-                if(res.public) props.public = res.public
-                props.key = this.#ws_key
+                if (res.key) this.#ws_key = res.key;
+                if (res.public) props.public = res.public;
+                props.key = this.#ws_key;
                 this.ws.send(JSON.stringify(props));
-                delete props.reconnect
+                delete props.reconnect;
             },
             onerror: async () => {
-                if(!this.authenticating){
+                if (!this.authenticating) {
                     props = {
                         subscriptionKey: this.#subscriptionKey,
                         query: builtQuery,
                         reconnect: true,
-                    }
+                    };
                 }
             },
-            onreconnect: ()=>{
-                if(!this.authenticating){
-                    this.ws.open()
+            onreconnect: () => {
+                if (!this.authenticating) {
+                    this.ws.open();
                 }
             },
-            onclose: ()=>{
-                this.listening = false
+            onclose: () => {
+                this.listening = false;
             },
             onmessage: (e) => {
                 let payload: any = e.data;
@@ -322,6 +312,7 @@ export default class LenQuery<Type> {
     unsubscribe() {
         if (this.ws) {
             this.#subscriptionKey = null;
+            this.listening = false;
             this.ws.close(1000, "unsubscribe");
         }
     }
@@ -337,13 +328,8 @@ export default class LenQuery<Type> {
         }
     ): Promise<{ data: Type[]; count: number }> {
         try {
-            if (
-                this.ref.includes("__users__") ||
-                this.ref.includes("__tokens__")
-            ) {
-                return Promise.reject(
-                    "Error: cannot access secured refferences use  instance.User() instead."
-                );
+            if (this.ref.includes("__users__") || this.ref.includes("__tokens__")) {
+                return Promise.reject("Error: cannot access secured refferences use  instance.User() instead.");
             }
             if (typeof options.live == "undefined") options.live = true;
             if (this.executing) {
@@ -374,11 +360,7 @@ export default class LenQuery<Type> {
                 }
             }
             //filter processing
-            if (
-                clone.filters &&
-                isObject(clone.filters) &&
-                Object.entries(clone.filters).length
-            ) {
+            if (clone.filters && isObject(clone.filters) && Object.entries(clone.filters).length) {
                 let tempFilters = [];
                 for (const entry of Object.entries(clone.filters)) {
                     let key = entry[0];
@@ -392,10 +374,8 @@ export default class LenQuery<Type> {
                         let filter = key.substring(start + 1, end);
                         let field = key.substring(0, start);
                         if (operatorBasis.includes(filter)) {
-                            if (filter == "in" && !Array.isArray(value))
-                                throw new Error("Invalid filter");
-                            if (filter == "between" && !Array.isArray(value))
-                                throw new Error("Invalid filter");
+                            if (filter == "in" && !Array.isArray(value)) throw new Error("Invalid filter");
+                            if (filter == "between" && !Array.isArray(value)) throw new Error("Invalid filter");
                             const alphaOperators = {
                                 eq: "==",
                                 neq: "!=",
@@ -405,18 +385,12 @@ export default class LenQuery<Type> {
                                 lte: "<=",
                             };
                             if (filter.startsWith("not")) {
-                                let transformedFilter = Object.keys(
-                                    alphaOperators
-                                ).includes(filter.substring(2).toLowerCase())
-                                    ? alphaOperators[
-                                          filter.substring(2).toLowerCase()
-                                      ]
+                                let transformedFilter = Object.keys(alphaOperators).includes(
+                                    filter.substring(2).toLowerCase()
+                                )
+                                    ? alphaOperators[filter.substring(2).toLowerCase()]
                                     : filter.substring(2).toLowerCase();
-                                tempFilters.push([
-                                    field,
-                                    transformedFilter,
-                                    value,
-                                ]);
+                                tempFilters.push([field, transformedFilter, value]);
                             } else {
                                 tempFilters.push([field, filter, value]);
                             }
@@ -442,11 +416,7 @@ export default class LenQuery<Type> {
                 //@ts-ignore
                 clone.aggregates = { groupBy, list };
             }
-            if (
-                clone.sorts &&
-                isObject(clone.sorts) &&
-                Object.entries(clone.sorts).length
-            ) {
+            if (clone.sorts && isObject(clone.sorts) && Object.entries(clone.sorts).length) {
                 let tempSorts = [];
                 for (const entry of Object.entries(clone.sorts)) {
                     let key = entry[0];
@@ -511,8 +481,6 @@ export default class LenQuery<Type> {
         if (this.controller) {
             this.controller.abort();
             this.executing = false;
-            this.ws.close()
-            this.listening = false
         }
         return this;
     }
@@ -562,19 +530,19 @@ class iLiveQuery {
     protected destroy: Function = null;
     protected initial: Function = null;
 
-    onAdd(cb: (e: any,allData:any[]) => void) {
+    onAdd(cb: (e: any, allData: any[]) => void) {
         this.add = cb;
     }
 
-    onInitial(cb: (e: any,allData:any[]) => void) {
+    onInitial(cb: (e: any, allData: any[]) => void) {
         this.initial = cb;
     }
 
-    onUpdate(cb: (e: any,allData:any[]) => void) {
+    onUpdate(cb: (e: any, allData: any[]) => void) {
         this.update = cb;
     }
 
-    onDestroy(cb: (e: any,allData:any[]) => void) {
+    onDestroy(cb: (e: any, allData: any[]) => void) {
         this.destroy = cb;
     }
 

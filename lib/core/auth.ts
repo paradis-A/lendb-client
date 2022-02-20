@@ -146,7 +146,7 @@ export default class Auth {
             return Promise.reject(error);
         }
     }
-    
+
     async Logout() {
         try {
             this.#removeCached();
@@ -192,7 +192,13 @@ export default class Auth {
                     body: JSON.stringify({ type: "authenticate" }),
                     credentials: "include",
                 })
-                .json();
+                .json().catch(e=>{
+                    console.log("response is",e)
+                    Object.entries(e).forEach(e=>{
+                        console.log(e[0],e[1])
+                    })
+                })
+        
             const { data, client_key } = res;
             if (client_key && data) {
                 // this.#removeCached()
@@ -227,6 +233,9 @@ export default class Auth {
             }
             return Promise.resolve(data);
         } catch (error) {
+            Object.entries(error).forEach(e=>{
+                console.log(e[0],e[1])
+            })
             if(error == "Invalid Token"){
                 this.Logout()
             }
