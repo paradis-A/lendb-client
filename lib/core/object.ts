@@ -1,10 +1,10 @@
 import cuid from "cuid";
 import cloneDeep from "lodash/cloneDeep";
-import ky from "ky"
+import { AxiosInstance } from "axios/dist/axios.min.js";
 import Normalize from "./normalize";
 import Emittery from "emittery";
 export default class LenObject{
-    private http: typeof ky
+    private http: AxiosInstance
     public key: string;
     protected operation: "save" | "load" | "destroy";
     protected ref: string;
@@ -13,7 +13,7 @@ export default class LenObject{
     protected singular: boolean = false;
     protected httpSettings: any
     private emitter: Emittery
-    constructor(ref: string, singularOrKey: boolean | string = false,http?: typeof ky,emitter?: Emittery) {
+    constructor(ref: string, singularOrKey: boolean | string = false,http?: AxiosInstance,emitter?: Emittery) {
         this.operation = "save"
         this.key = cuid()
         if (
@@ -35,7 +35,7 @@ export default class LenObject{
     async destroy(){
         try {
             let payload: any = {key: this.key,ref: this.ref,operation: "destroy", singular: this.singular}
-            let res=  this.http.post("lenDB",{body: JSON.stringify(payload)}).json()
+            let res =  (await this.http.post("lenDB",JSON.stringify(payload))).data
             return Promise.resolve(res)
         } catch (error) {
             return Promise.reject(error)
@@ -83,7 +83,7 @@ export default class LenObject{
     async commit(): Promise<any> {
         try {
             const clone = this.parse()
-            let res = await this.http.post("lenDB",{body: JSON.stringify(clone)}).json()
+            let res = (await this.http.post("lenDB",JSON.stringify(clone))).data
             if(this.operation == "destroy"){
                 this.clear()
                 this.key = cuid()
@@ -110,7 +110,7 @@ export default class LenObject{
     async load() : Promise<any>{
         try {
             let payload: any = { operation: "load",key: this.key, ref: this.ref, singular: this.singular}
-            let res = await this.http.post("lenDB",{body: JSON.stringify(payload)}).json()
+            let res = (await this.http.post("lenDB",JSON.stringify(payload))).data
             console.log("load result", res)
             if(res){
                 return Promise.resolve(Normalize(res))

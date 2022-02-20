@@ -5,10 +5,10 @@ import ky from "ky"
 import LenFile from "./core/file";
 import Commit from "./core/commit"
 import Emittery from "emittery";
-
+import axios, {AxiosInstance} from "axios/dist/axios.min.js"
 export default class LenDB {
     readonly Auth: Auth;
-    readonly http: typeof ky
+    readonly http: AxiosInstance
     readonly wsURL: string
     private baseURL: string
     readonly #Emitter: Emittery
@@ -21,7 +21,7 @@ export default class LenDB {
     ) {
         this.baseURL = (secure ? "https://" : "http://") + host + ":" + port
         this.wsURL = (secure ? "wss://" : "ws://") + host + ":" + port
-        this.http = ky.create({credentials: "include",prefixUrl: this.baseURL })
+        this.http = axios.create({baseURL:this.baseURL , withCredentials: true,maxBodyLength: Infinity,maxContentLength:Infinity})
         this.#Emitter = new Emittery()
         this.Auth = new Auth(this.http,this.baseURL,this.#Emitter);
     }
@@ -40,9 +40,10 @@ export default class LenDB {
         return Commit(data,this.http)
     }
 
-    File(file: File) {
-        return new LenFile(file,this.baseURL,this.http,this.#Emitter);
-    }
+    // File(file: File) {
+    //     return new LenFile(file,this.baseURL,this.http,this.#Emitter);
+    // }
+    
     Query<T>(ref: string) {
         return new Query<T>(ref,this.http,this.wsURL,this.#Emitter,this.Auth);
     }

@@ -1,5 +1,5 @@
 import Emittery from "emittery";
-import ky from "ky";
+import { AxiosInstance } from "axios/dist/axios.min.js";
 import Sockette from "sockette";
 import Auth from "./auth";
 import { Writable } from "svelte/store";
@@ -28,9 +28,8 @@ export default class LenQuery<Type> {
     protected signal: AbortSignal;
     protected ws: Sockette;
     searchString: string;
-    http: typeof ky;
     private wsUrl;
-    constructor(ref: string, http: typeof ky, wsUrl: string, emitter: Emittery, auth: Auth);
+    constructor(ref: string, http: AxiosInstance, wsUrl: string, emitter: Emittery, auth: Auth);
     get data(): Writable<Type[]>;
     get count(): Writable<number>;
     like(field: string, value: any, pattern: "both" | "left" | "right"): this;
@@ -101,4 +100,3 @@ declare class iLiveQuery {
     getEvent(event: "add" | "update" | "destroy" | "initial"): Function;
 }
 export {};
-//# sourceMappingURL=query.d.ts.map

@@ -1,7 +1,7 @@
 import Object from "./object";
-import ky from "ky";
+import {AxiosInstance} from "axios/dist/axios.min.js"
 import cuid from "cuid";
-export default async function Commit(data: Object[],http?:typeof ky) {
+export default async function Commit(data: Object[],http?:AxiosInstance) {
     try {
         if (Array.isArray(data)) {
             if(data.every(d => d instanceof Object)){
@@ -9,7 +9,7 @@ export default async function Commit(data: Object[],http?:typeof ky) {
                     Promise.reject("Error: commit does not support load operation");
                 }
                 let payload = data.map(d=>d.parse())
-                let res = await http.post("lenDB",{body: JSON.stringify(payload)}).json()
+                let res = (await http.post("lenDB",payload)).data
                 data.forEach((d,index)=>{
                     if(data[index].getOperation() == "destroy"){
                         data[index].clear()

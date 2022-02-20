@@ -1,4 +1,4 @@
-import ky from "ky";
+import { AxiosInstance } from "axios/dist/axios.min.js";
 import Emittery from "emittery";
 export default class LenObject {
     private http;
@@ -10,8 +10,8 @@ export default class LenObject {
     protected singular: boolean;
     protected httpSettings: any;
     private emitter;
-    constructor(ref: string, singularOrKey?: boolean | string, http?: typeof ky, emitter?: Emittery);
-    destroy(): Promise<unknown>;
+    constructor(ref: string, singularOrKey?: boolean | string, http?: AxiosInstance, emitter?: Emittery);
+    destroy(): Promise<any>;
     getOperation(): "save" | "load" | "destroy";
     parse(): any;
     clear(): void;
@@ -35,4 +35,3 @@ export default class LenObject {
      */
     toDestroy(yes?: boolean): this;
 }
-//# sourceMappingURL=object.d.ts.map

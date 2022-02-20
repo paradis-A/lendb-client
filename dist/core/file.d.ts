@@ -15,4 +15,3 @@ export default class LenFile {
     }>;
     save(): Promise<any>;
 }
-//# sourceMappingURL=file.d.ts.map

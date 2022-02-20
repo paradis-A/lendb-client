@@ -1,19 +1,19 @@
-import ky from "ky";
 // import SimpleCrypto from "simple-crypto-js"
 import { writable } from "svelte/store";
 import Emittery from "emittery";
 import isEqual from "lodash/isEqual";
 import Crypto from "simple-crypto-js";
+import {AxiosInstance} from "axios/dist/axios.min.js"
 export default class Auth {
     //server must respond to encrypt the cache: the key will be based on the httpOnly cookie
     #storageKey: string;
-    #http: typeof ky;
+    #http: AxiosInstance;
     #client_key: string;
     #svelteStorage = writable({});
     emitter: Emittery;
     #crypto: Crypto;
     private baseUrl: string;
-    constructor(http: typeof ky, baseUrl?: string, emitter?: Emittery) {
+    constructor(http: AxiosInstance, baseUrl?: string, emitter?: Emittery) {
         this.#http = http;
         this.emitter = emitter;
         this.baseUrl = baseUrl;
@@ -58,15 +58,12 @@ export default class Auth {
             if (typeof password != "string") {
                 return Promise.resolve("Invalid password format");
             }
-            let res: any = await this.#http
-                .post("lenDB_Auth", {
-                    body: JSON.stringify({
-                        username: usernameOrEmail,
-                        password,
-                        type: "login",
-                    }),
-                })
-                .json();
+            let res: any = (await this.#http
+                .post("lenDB_Auth",JSON.stringify({
+                    username: usernameOrEmail,
+                    password,
+                    type: "login",
+                }))).data
             const { data, client_key } = res;
             this.#client_key = client_key;
             this.#storageKey = this.#createStorageKey();
@@ -124,11 +121,8 @@ export default class Auth {
                 }
                 //@ts-ignore
                 credentials.type = "register";
-                let res: any = await this.#http
-                    .post("lenDB_Auth", {
-                        body: JSON.stringify(credentials),
-                    })
-                    .json();
+                let res: any = (await this.#http
+                    .post("lenDB_Auth", JSON.stringify(credentials))).data
                 const { data, client_key } = res;
                 this.#client_key = client_key;
                 this.#storageKey = this.#createStorageKey();
@@ -152,11 +146,8 @@ export default class Auth {
             this.#removeCached();
             this.#svelteStorage.set({});
             this.#client_key = undefined;
-            let res = await this.#http
-                .post("lenDB_Auth", {
-                    body: JSON.stringify({ type: "logout" }),
-                })
-                .json();
+            let res = (await this.#http
+                .post("lenDB_Auth", JSON.stringify({ type: "logout"}) )).data
             this.emitter.emit("logout")
             return Promise.resolve(res);
         } catch (error) {
@@ -166,12 +157,8 @@ export default class Auth {
 
     async Update(userInfo: any) {
         try {
-            let res = await this.#http
-                .post("lenDB_Auth", {
-                    body: JSON.stringify({ type: "update", ...userInfo }),
-                    credentials: "include",
-                })
-                .json();
+            let res = (await this.#http
+                .post("lenDB_Auth", { type: "update", ...userInfo })).data
             // this.#storage.set(this.#storageKey, res);
             this.#svelteStorage.set(res);
             return Promise.resolve(res);
@@ -187,18 +174,8 @@ export default class Auth {
 
     async Authenticate() {
         try {
-            let res: any = await this.#http
-                .post("lenDB_Auth", {
-                    body: JSON.stringify({ type: "authenticate" }),
-                    credentials: "include",
-                })
-                .json().catch(e=>{
-                    console.log("response is",e)
-                    Object.entries(e).forEach(e=>{
-                        console.log(e[0],e[1])
-                    })
-                })
-        
+            let res: any = (await this.#http
+                .post("lenDB_Auth", JSON.stringify({ type: "authenticate" }))).data
             const { data, client_key } = res;
             if (client_key && data) {
                 // this.#removeCached()
@@ -233,10 +210,7 @@ export default class Auth {
             }
             return Promise.resolve(data);
         } catch (error) {
-            Object.entries(error).forEach(e=>{
-                console.log(e[0],e[1])
-            })
-            if(error == "Invalid Token"){
+            if(error.response.data.message == "Invalid Token"){
                 this.Logout()
             }
             return Promise.reject(error);

@@ -24,7 +24,6 @@
     "cuid": "^2.1.8",
     "dayjs": "^1.10.7",
     "emittery": "^0.10.0",
-    "ky": "^0.28.7",
     "lodash": "^4.17.21",
     "simple-crypto-js": "^3.0.1",
     "sockette": "^2.0.6",

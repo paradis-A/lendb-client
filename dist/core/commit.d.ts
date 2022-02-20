@@ -1,4 +1,3 @@
 import Object from "./object";
-import ky from "ky";
-export default function Commit(data: Object[], http?: typeof ky): Promise<unknown>;
-//# sourceMappingURL=commit.d.ts.map
+import { AxiosInstance } from "axios/dist/axios.min.js";
+export default function Commit(data: Object[], http?: AxiosInstance): Promise<any>;

@@ -1,10 +1,10 @@
-import ky from "ky";
 import Emittery from "emittery";
+import { AxiosInstance } from "axios/dist/axios.min.js";
 export default class Auth {
     #private;
     emitter: Emittery;
     private baseUrl;
-    constructor(http: typeof ky, baseUrl?: string, emitter?: Emittery);
+    constructor(http: AxiosInstance, baseUrl?: string, emitter?: Emittery);
     Login(usernameOrEmail: string, password: string): Promise<any>;
     on(event: "logout" | "login" | "update", callback: () => void): void;
     isValidEmail(email: string): void;
@@ -13,9 +13,8 @@ export default class Auth {
         password: string;
         email: string;
     }): Promise<any>;
-    Logout(): Promise<unknown>;
-    Update(userInfo: any): Promise<unknown>;
+    Logout(): Promise<any>;
+    Update(userInfo: any): Promise<any>;
     Me(): any;
     Authenticate(): Promise<any>;
 }
-//# sourceMappingURL=auth.d.ts.map

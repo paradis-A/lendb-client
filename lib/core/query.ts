@@ -1,6 +1,6 @@
 import Emittery from "emittery";
 import cuid from "cuid";
-import ky from "ky";
+import { AxiosInstance } from "axios/dist/axios.min.js";
 import cloneDeep from "lodash/cloneDeep";
 import isObject from "lodash/isObject";
 import Sockette from "sockette";
@@ -35,11 +35,11 @@ export default class LenQuery<Type> {
     protected ws: Sockette;
     #ws_key: string;
     searchString: string;
-    http: typeof ky;
+    #http: AxiosInstance;
     private wsUrl: string;
-    constructor(ref: string, http: typeof ky, wsUrl: string, emitter: Emittery, auth: Auth) {
+    constructor(ref: string, http: AxiosInstance, wsUrl: string, emitter: Emittery, auth: Auth) {
         this.ref = ref;
-        this.http = http;
+        this.#http = http;
         this.wsUrl = wsUrl;
         this.emitter = emitter;
         this.operation = "query";
@@ -196,7 +196,6 @@ export default class LenQuery<Type> {
 
     protected stripNonQuery(clone: this) {
         delete clone.emitter;
-        delete clone.http;
         delete clone.wsUrl;
         delete clone.emitter;
         delete clone.queueBeforeResult;
@@ -243,9 +242,9 @@ export default class LenQuery<Type> {
                     alert("authenticating");
                     return;
                 }
-                let res: any = await this.http
-                    .post("lenDB_Auth", { body: JSON.stringify({ type: "authenticate_ws" }) })
-                    .json();
+                let res: any = (await this.#http
+                    .post("lenDB_Auth", JSON.stringify( { type: "authenticate_ws"  }))).data
+                    
                 this.authenticating = false;
                 if (this.#ws_key && res?.public == true) {
                     this.#ws_key = null;
@@ -449,19 +448,14 @@ export default class LenQuery<Type> {
                 Promise.reject("Query Cancelled");
             };
             this.executing = true;
-            let res: any = await this.http
-                .post("lenDB", {
-                    signal: this.signal,
-                    body: JSON.stringify(clone),
-                })
-                .json();
+            let res: any = (await this.#http
+                .post("lenDB",  JSON.stringify(clone), {signal: this.signal} )).data
             let tempData = res?.data;
             if (tempData && Array.isArray(tempData)) {
                 tempData = tempData.map((data) => {
                     return Normalize(data);
                 });
             }
-
             this.#data = tempData;
             this.#count = res.count;
             this.#reactiveData.set(tempData);
