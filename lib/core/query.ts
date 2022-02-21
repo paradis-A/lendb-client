@@ -432,6 +432,8 @@ export default class LenQuery<Type> {
             this.executing = true;
             let res: any = { data: [], count: 0 };
             let tempData = [];
+            //@ts-ignore
+            if(clone.aggregates.length && clone.compoundFilter.length) throw Error("Error: Cannot aggregate with compundfilter")
             if (!options.live) {
                 this.ws = null
                 this.controller = new AbortController();
