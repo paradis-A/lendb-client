@@ -9,10 +9,10 @@ import Auth from "./auth";
 import { Writable, writable } from "svelte/store";
 import pWaitFor from "./pwaitfor";
 export default class LenQuery<Type> {
-    filters: any = {};
-    sorts: { [any: string]: "ASC" | "DESC" | null } = {};
     protected ref: string;
     protected listener: iLiveQuery;
+    filters: any = {};
+    sorts: { [any: string]: "ASC" | "DESC" | null } = {};
     skip: number = 0;
     limit: number = 100;
     page: number = 0;
@@ -36,8 +36,8 @@ export default class LenQuery<Type> {
     protected controller!: AbortController;
     protected signal!: AbortSignal;
     protected ws: Sockette;
+    protected compoundFilter: any = {}
     #ws_key: string;
-    searchString: string;
     #http: AxiosInstance;
     private wsUrl: string;
     constructor(ref: string, http: AxiosInstance, wsUrl: string, emitter: Emittery, auth: Auth) {
@@ -184,15 +184,16 @@ export default class LenQuery<Type> {
         return this;
     }
 
-    search(word: string) {
-        this.searchString = word;
-        return this;
-    }
-
     aggregate(groupBy: string, cb: (ops: Aggregate) => void | Aggregate) {
         this.aggregates = new Aggregate(groupBy);
         cb(this.aggregates);
         return this;
+    }
+
+    compound(cb: (filters:CompoundFilter)=>void){
+        let tempcf = new CompoundFilter()
+        cb(tempcf)
+        this.compoundFilter = tempcf.filters
     }
 
     protected stripNonQuery(clone: this) {
@@ -390,74 +391,21 @@ export default class LenQuery<Type> {
                 this.timeout = timeout;
             }
 
-            if (typeof options.searchString == "string") {
-                this.searchString = options.searchString;
-            }
             let clone = this.stripNonQuery(cloneDeep(this));
-            if (!clone.searchString || typeof clone.searchString != "string") {
-                delete clone.searchString;
-            }
-            //clear white spaces on each string
-            if (clone.searchString) {
-                let noWhiteSpace = clone.searchString.split(" ");
-                if (noWhiteSpace.every((v) => v == "")) {
-                    delete clone.searchString;
-                }
-                if (!clone.searchString.length) {
-                    delete clone.searchString;
-                }
-            }
             //filter processing
             if (clone.filters && isObject(clone.filters) && Object.entries(clone.filters).length) {
-                let tempFilters = [];
-                for (const entry of Object.entries(clone.filters)) {
-                    let key = entry[0];
-                    let value = entry[1];
-                    if (key.includes("[") || key.includes("]")) {
-                        let start = key.indexOf("[");
-                        let end = key.indexOf("]");
-                        if (start == -1 || end == -1) {
-                            throw new Error("Filter must be enclosed with []");
-                        }
-                        let filter = key.substring(start + 1, end);
-                        let field = key.substring(0, start);
-                        if (operatorBasis.includes(filter)) {
-                            if (filter == "in" && !Array.isArray(value)) throw new Error("Invalid filter");
-                            if (filter == "between" && !Array.isArray(value)) throw new Error("Invalid filter");
-                            const alphaOperators = {
-                                eq: "==",
-                                neq: "!=",
-                                gt: ">",
-                                gte: ">=",
-                                lt: "<",
-                                lte: "<=",
-                            };
-                            if (filter.startsWith("not")) {
-                                let transformedFilter = Object.keys(alphaOperators).includes(
-                                    filter.substring(2).toLowerCase()
-                                )
-                                    ? alphaOperators[filter.substring(2).toLowerCase()]
-                                    : filter.substring(2).toLowerCase();
-                                tempFilters.push([field, transformedFilter, value]);
-                            } else {
-                                tempFilters.push([field, filter, value]);
-                            }
-                        } else {
-                            throw new Error("Invalid filter");
-                        }
-                    } else {
-                        if (Array.isArray(value)) {
-                            tempFilters.push([key, "in", value]);
-                        } else {
-                            tempFilters.push([key, "==", value]);
-                        }
-                    }
-                }
                 //@ts-ignore
-                clone.filters = tempFilters;
+                clone.filters = this.transformFilters(clone.filters);
             } else {
                 //@ts-ignore
                 clone.filters = [];
+            }
+            if (clone.compoundFilter && isObject(clone.compoundFilter) && Object.entries(clone.compoundFilter).length) {
+               //@ts-ignore
+               clone.compoundFilter = this.transformFilters(clone.compoundFilter);
+            } else {
+                //@ts-ignore
+                clone.compoundFilter = [];
             }
             if (clone.aggregates && clone?.aggregates.list.length) {
                 const { groupBy, list } = clone.aggregates;
@@ -478,6 +426,7 @@ export default class LenQuery<Type> {
                 //@ts-ignore
                 clone.sorts = tempSorts;
             }
+            
             this.unsubscribe();
             this.listening = false;
             this.executing = true;
@@ -533,6 +482,59 @@ export default class LenQuery<Type> {
         }
         return this;
     }
+
+    protected transformFilters(clone: this | any){
+        try {
+            let tempFilters = []
+        for (const entry of Object.entries(clone.filters)) {
+            let key = entry[0];
+            let value = entry[1];
+            if (key.includes("[") || key.includes("]")) {
+                let start = key.indexOf("[");
+                let end = key.indexOf("]");
+                if (start == -1 || end == -1) {
+                    throw new Error("Filter must be enclosed with []");
+                }
+                let filter = key.substring(start + 1, end);
+                let field = key.substring(0, start);
+                if (operatorBasis.includes(filter)) {
+                    if (filter == "in" && !Array.isArray(value)) throw new Error("Invalid filter");
+                    if (filter == "between" && !Array.isArray(value)) throw new Error("Invalid filter");
+                    const alphaOperators = {
+                        eq: "==",
+                        neq: "!=",
+                        gt: ">",
+                        gte: ">=",
+                        lt: "<",
+                        lte: "<=",
+                    };
+                    if (filter.startsWith("not")) {
+                        let transformedFilter = Object.keys(alphaOperators).includes(
+                            filter.substring(2).toLowerCase()
+                        )
+                            ? alphaOperators[filter.substring(2).toLowerCase()]
+                            : filter.substring(2).toLowerCase();
+                        tempFilters.push([field, transformedFilter, value]);
+                    } else {
+                        tempFilters.push([field, filter, value]);
+                    }
+                } else {
+                    throw new Error("Invalid filter");
+                }
+            } else {
+                if (Array.isArray(value)) {
+                    tempFilters.push([key, "in", value]);
+                } else {
+                    tempFilters.push([key, "==", value]);
+                }
+            }
+        }
+        return tempFilters
+        } catch (error) {
+            throw Error(error)
+        }
+    }
+
 }
 
 class Aggregate {
@@ -637,3 +639,103 @@ const operatorBasis = [
     ">",
     "<",
 ];
+
+export class CompoundFilter{
+    filters: any = {};
+    like(field: string, value: any, pattern: "both" | "left" | "right") {
+        let val = "*" + value + "*";
+        if (pattern == "left") val = "*" + value;
+        if (pattern == "right") val = value + "*";
+        this.filters[field + "[like]"] = val;
+        return this;
+    }
+
+    notLike(field: string, value: string, pattern: "both" | "left" | "right") {
+        let val = "*" + value + "*";
+        if (pattern == "left") val = "*" + value;
+        if (pattern == "right") val = value + "*";
+        this.filters[field + "[!like]"] = val;
+        return this;
+    }
+
+    gt(field: string, value: any) {
+        this.filters[field + "[>]"] = value;
+        return this;
+    }
+
+    gte(field: string, value: any) {
+        this.filters[field + "[>=]"] = value;
+        return this;
+    }
+
+    between(field: string, value: any) {
+        this.filters[field + "[between]"] = value;
+        return this;
+    }
+
+    notBetween(field: string, value: any) {
+        this.filters[field + "[!between]"] = value;
+        return this;
+    }
+
+    lt(field: string, value: any) {
+        this.filters[field + "[<]"] = value;
+        return this;
+    }
+
+    lte(field: string, value: any) {
+        this.filters[field + "[<=]"] = value;
+        return this;
+    }
+
+    eq(field: string, value: any) {
+        this.filters[field + "[==]"] = value;
+        return this;
+    }
+
+    notEq(field: string, value: any) {
+        this.filters[field + "[!=]"] = value;
+        return this;
+    }
+
+    in(field: string, value: any[]) {
+        this.filters[field + "[in]"] = value;
+        return this;
+    }
+
+    notIn(field: string, value: any[]) {
+        this.filters[field + "[!in]"] = value;
+        return this;
+    }
+
+    matches(field: string, value: any[]) {
+        this.filters[field + "[matches]"] = value;
+        return this;
+    }
+
+    notMatches(field: string, value: any[]) {
+        this.filters[field + "[!matches]"] = value;
+        return this;
+    }
+
+    has(field: string, value: any[]) {
+        this.filters[field + "[has]"] = value;
+        return this;
+    }
+
+    notHas(field: string, value: any[]) {
+        this.filters[field]["!has"] = value;
+        return this;
+    }
+
+    contains(field: string, value: any[]) {
+        this.filters[field]["contains"] = value;
+        return this;
+    }
+
+    notContains(field: string, value: any[]) {
+        this.filters[field]["!contains"] = value;
+        return this;
+    }
+
+}

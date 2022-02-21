@@ -5,12 +5,12 @@ import Auth from "./auth";
 import { Writable } from "svelte/store";
 export default class LenQuery<Type> {
     #private;
+    protected ref: string;
+    protected listener: iLiveQuery;
     filters: any;
     sorts: {
         [any: string]: "ASC" | "DESC" | null;
     };
-    protected ref: string;
-    protected listener: iLiveQuery;
     skip: number;
     limit: number;
     page: number;
@@ -28,7 +28,7 @@ export default class LenQuery<Type> {
     protected controller: AbortController;
     protected signal: AbortSignal;
     protected ws: Sockette;
-    searchString: string;
+    protected compoundFilter: any;
     private wsUrl;
     constructor(ref: string, http: AxiosInstance, wsUrl: string, emitter: Emittery, auth: Auth);
     get data(): Writable<Type[]>;
@@ -54,8 +54,8 @@ export default class LenQuery<Type> {
     sort(field: string, asc?: boolean): this;
     exclude(fields: string[]): this;
     include(fields: string[]): this;
-    search(word: string): this;
     aggregate(groupBy: string, cb: (ops: Aggregate) => void | Aggregate): this;
+    compound(cb: (filters: CompoundFilter) => void): void;
     protected stripNonQuery(clone: this): this;
     on(cb: (event: iLiveQuery) => void): void;
     clearFilters(): void;
@@ -74,6 +74,7 @@ export default class LenQuery<Type> {
         count: number;
     }>;
     cancel(): this;
+    protected transformFilters(clone: this | any): any[];
 }
 declare class Aggregate {
     list: {
@@ -100,5 +101,26 @@ declare class iLiveQuery {
     onUpdate(cb: (e: any, allData: any[]) => void): void;
     onDestroy(cb: (e: any, allData: any[]) => void): void;
     getEvent(event: "add" | "update" | "destroy" | "initial"): Function;
+}
+export declare class CompoundFilter {
+    filters: any;
+    like(field: string, value: any, pattern: "both" | "left" | "right"): this;
+    notLike(field: string, value: string, pattern: "both" | "left" | "right"): this;
+    gt(field: string, value: any): this;
+    gte(field: string, value: any): this;
+    between(field: string, value: any): this;
+    notBetween(field: string, value: any): this;
+    lt(field: string, value: any): this;
+    lte(field: string, value: any): this;
+    eq(field: string, value: any): this;
+    notEq(field: string, value: any): this;
+    in(field: string, value: any[]): this;
+    notIn(field: string, value: any[]): this;
+    matches(field: string, value: any[]): this;
+    notMatches(field: string, value: any[]): this;
+    has(field: string, value: any[]): this;
+    notHas(field: string, value: any[]): this;
+    contains(field: string, value: any[]): this;
+    notContains(field: string, value: any[]): this;
 }
 export {};
