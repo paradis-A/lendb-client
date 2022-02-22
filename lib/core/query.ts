@@ -433,7 +433,7 @@ export default class LenQuery<Type> {
             let res: any = { data: [], count: 0 };
             let tempData = [];
             //@ts-ignore
-            if(clone.aggregates.length && clone.compoundFilter.length) throw Error("Error: Cannot aggregate with compundfilter")
+            if(clone.aggregates && Object.entries(clone.aggregates).length && clone.compoundFilter.length) throw Error("Error: Cannot aggregate with compundfilter")
             if (!options.live) {
                 this.ws = null
                 this.controller = new AbortController();
@@ -471,8 +471,8 @@ export default class LenQuery<Type> {
         } catch (error) {
             this.executing = false;
             this.listening = false;
+            if(this.ws)this.ws.close()
             this.ws = null;
-            this.ws.close()
             return Promise.reject(error);
         }
     }
