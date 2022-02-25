@@ -1,7 +1,7 @@
 import Object from "./core/object";
 import Query from "./core/query";
 import Auth from "./core/auth";
-import ky from "ky"
+import Singular from "./core/singular";
 import LenFile from "./core/file";
 import Commit from "./core/commit"
 import Emittery from "emittery";
@@ -26,14 +26,18 @@ export default class LenDB {
         this.Auth = new Auth(this.http,this.baseURL,this.#Emitter);
     }
     
-    Object<T>(ref: string, keyOrSingular?: string | boolean): Object {
+    Object<T>(ref: string, key?: string): Object {
         function IdentifiableSubclass<Tbase extends Base>(SuperClass: Constructor<Tbase>) {
             class C extends (<Constructor<Base>>SuperClass) {
             }
             return <Constructor<T & Tbase>>C;
         }
         const ObjectWrapper = IdentifiableSubclass(Object)
-        return new ObjectWrapper(ref,keyOrSingular,this.http,this.#Emitter)
+        return new ObjectWrapper(ref,key,this.http,this.#Emitter)
+    }
+
+    Singular(path: string){
+        
     }
 
     Commit(data: Object[]){

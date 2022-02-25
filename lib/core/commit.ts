@@ -1,6 +1,5 @@
 import Object from "./object";
 import {AxiosInstance} from "axios/dist/axios.min.js"
-import cuid from "cuid";
 export default async function Commit(data: Object[],http?:AxiosInstance) {
     try {
         if (Array.isArray(data)) {
@@ -12,8 +11,7 @@ export default async function Commit(data: Object[],http?:AxiosInstance) {
                 let res = (await http.post("lenDB",payload)).data
                 data.forEach((d,index)=>{
                     if(data[index].getOperation() == "destroy"){
-                        data[index].clear()
-                        data[index].key = cuid()
+                        data[index].new()
                     }
                 })
                 return Promise.resolve(res) 

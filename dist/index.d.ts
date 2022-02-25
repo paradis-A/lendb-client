@@ -9,7 +9,8 @@ export default class LenDB {
     readonly wsURL: string;
     private baseURL;
     constructor(host?: string, port?: number, secure?: boolean);
-    Object<T>(ref: string, keyOrSingular?: string | boolean): Object;
+    Object<T>(ref: string, key?: string): Object;
+    Singular(path: string): void;
     Commit(data: Object[]): Promise<any>;
     Query<T>(ref: string): Query<T>;
 }

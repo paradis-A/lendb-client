@@ -4,6 +4,7 @@ import resolve from "@rollup/plugin-node-resolve";
 import globals from "rollup-plugin-node-globals";
 import { terser } from "rollup-plugin-terser";
 import builtins from 'rollup-plugin-node-builtins';
+import swc from 'rollup-plugin-swc'
 import json from "@rollup/plugin-json";
 export default {
     input: "lib/index.ts",
@@ -31,5 +32,6 @@ export default {
         globals(),
         terser(),
         json(),
+        
     ],
 };
