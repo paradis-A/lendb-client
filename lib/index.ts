@@ -35,6 +35,7 @@ export default class LenDB {
         const ObjectWrapper = IdentifiableSubclass(Object)
         return new ObjectWrapper(ref,key,this.http,this.#Emitter)
     }
+    
 
     Singular(path: string){
         
